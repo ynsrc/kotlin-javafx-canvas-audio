@@ -84,7 +84,7 @@ class MainController : Initializable {
                 while (isAppRunning.get()) {
                     if (circularShortBuffer.available() > 0) {
                         val value = circularShortBuffer.get()
-                        g.clearRect((x+1).mod(canvasWidth).toDouble(), 0.0, 1.0, canvasHeight.toDouble())
+                        g.clearRect((x+2).mod(canvasWidth).toDouble(), 0.0, 1.0, canvasHeight.toDouble())
                         if (++x >= canvasWidth) x = 0
                         val normalizedValue = (value.toFloat() / Short.MAX_VALUE)
                         g.strokeLine(
