@@ -16,4 +16,5 @@ class CircularShortBuffer(private val size: Int) {
 
     fun put(f: Short) { floatArray[head++.mod(size)] = f }
     fun get() : Short = floatArray[tail++.mod(size)]
+    fun size() = floatArray.size
 }

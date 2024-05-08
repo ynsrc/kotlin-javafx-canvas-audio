@@ -5,18 +5,13 @@ import javafx.fxml.Initializable
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
-import javafx.scene.image.PixelFormat
-import javafx.scene.image.WritableImage
 import javafx.scene.layout.Pane
 import java.net.URL
-import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.TargetDataLine
-import kotlin.math.max
-import kotlin.math.min
 
 class MainController : Initializable {
     @FXML
@@ -24,18 +19,15 @@ class MainController : Initializable {
 
     @FXML
     private lateinit var canvas: Canvas
+    private lateinit var g: GraphicsContext
     private var canvasWidth = 640
     private var canvasHeight = 480
+
     private val isAppRunning = AtomicBoolean(false)
 
     private val audioFormat = AudioFormat(44100F, 16, 1, true, false)
     private var microphone: TargetDataLine = AudioSystem.getTargetDataLine(audioFormat)
-
-    private lateinit var g: GraphicsContext
-    private lateinit var image: WritableImage
-    private val pixelFormat = PixelFormat.getIntArgbPreInstance()
-
-    private var circularShortBuffer = CircularShortBuffer(44100)
+    private var circularShortBuffer = CircularShortBuffer(canvasWidth)
 
     @FXML
     override fun initialize(url: URL?, resources: ResourceBundle?) {
@@ -43,51 +35,12 @@ class MainController : Initializable {
         canvasPane.widthProperty().addListener { _, _, newValue ->
             canvas.width = newValue.toDouble()
             canvasWidth = newValue.toInt()
-            createImage()
         }
         canvasPane.heightProperty().addListener { _, _, newValue ->
             canvas.height = newValue.toDouble()
             canvasHeight = newValue.toInt()
-            createImage()
         }
         g = canvas.graphicsContext2D
-    }
-
-    private fun createImage() {
-        val width = canvas.widthProperty().get().toInt()
-        val height = canvas.heightProperty().get().toInt()
-        image = WritableImage(width, height)
-        val buffer = IntBuffer.allocate(width * height)
-        Arrays.fill(buffer.array(), (0xFFFFFFFF).toInt())
-        image.pixelWriter.setPixels(0, 0, width, height, pixelFormat, buffer, width)
-    }
-
-    private fun appendValue(value: Short) {
-        val width = image.width.toInt()
-        val height = image.height.toInt()
-
-        image.pixelWriter.setPixels(0, 0, width -1, height, image.pixelReader, 1, 0)
-
-        val buffer = IntBuffer.allocate(height)
-
-        val normalizedValue = (value.toFloat() / Short.MAX_VALUE.toFloat())
-        val line = ((height / 2f) + (height / 2f) * normalizedValue).toInt()
-
-        val lineRange = IntRange(
-            min(line, height / 2),
-            max(line, height / 2)
-        )
-
-        for (i in 0 until height) {
-            buffer.put(i, when {
-                i in lineRange -> (0xFF000000).toInt()
-                else -> (0xFFFFFFFF).toInt()
-            })
-        }
-
-        image.pixelWriter.setPixels(width - 1, 0, 1, height, pixelFormat, buffer, 1)
-
-        g.pixelWriter.setPixels(0, 0, width, height, image.pixelReader, 0, 0)
     }
 
     @FXML
@@ -99,8 +52,8 @@ class MainController : Initializable {
             btnStartStop.text = "Start Sampling"
             return
         } else {
-            if (image.width.toInt() != canvasWidth || image.height.toInt() != canvasHeight) {
-                createImage()
+            if (circularShortBuffer.size() != canvasWidth) {
+                circularShortBuffer = CircularShortBuffer(canvasWidth)
             }
             microphone.open(audioFormat)
             microphone.start()
@@ -127,9 +80,17 @@ class MainController : Initializable {
 
         object : Thread() {
             override fun run() {
+                var x = 0
                 while (isAppRunning.get()) {
                     if (circularShortBuffer.available() > 0) {
-                        appendValue(circularShortBuffer.get())
+                        val value = circularShortBuffer.get()
+                        g.clearRect((x+1).mod(canvasWidth).toDouble(), 0.0, 1.0, canvasHeight.toDouble())
+                        if (++x >= canvasWidth) x = 0
+                        val normalizedValue = (value.toFloat() / Short.MAX_VALUE)
+                        g.strokeLine(
+                            x.toDouble(), canvasHeight / 2.0, x.toDouble(),
+                            (canvasHeight / 2.0) * (normalizedValue + 1.0)
+                        )
                     }
                 }
             }
