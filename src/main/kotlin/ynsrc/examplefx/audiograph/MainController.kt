@@ -35,7 +35,7 @@ class MainController : Initializable {
     private lateinit var image: WritableImage
     private val pixelFormat = PixelFormat.getIntArgbPreInstance()
 
-    private var circularFloatBuffer = CircularFloatBuffer(2048)
+    private var circularShortBuffer = CircularShortBuffer(44100)
 
     @FXML
     override fun initialize(url: URL?, resources: ResourceBundle?) {
@@ -62,7 +62,7 @@ class MainController : Initializable {
         image.pixelWriter.setPixels(0, 0, width, height, pixelFormat, buffer, width)
     }
 
-    private fun appendValue(v: Float) {
+    private fun appendValue(value: Short) {
         val width = image.width.toInt()
         val height = image.height.toInt()
 
@@ -70,7 +70,8 @@ class MainController : Initializable {
 
         val buffer = IntBuffer.allocate(height)
 
-        val line = ((height / 2) + (height / 2) * v).toInt()
+        val normalizedValue = (value.toFloat() / Short.MAX_VALUE.toFloat())
+        val line = ((height / 2f) + (height / 2f) * normalizedValue).toInt()
 
         val lineRange = IntRange(
             min(line, height / 2),
@@ -109,17 +110,13 @@ class MainController : Initializable {
         object : Thread() {
             override fun run() {
                 val byteArray = ByteArray(microphone.bufferSize)
-                val floatArray = FloatArray(microphone.bufferSize / 2)
                 while (microphone.isOpen && isAppRunning.get()) {
                     if (microphone.available() > 0) {
-                        val spp = floatArray.size / canvasWidth
                         val read = microphone.read(byteArray, 0, microphone.bufferSize)
                         for (i in 0 until read/2 - 1 step 2) {
                             if (!isAppRunning.get()) break;
-                            val value = byteArray[i].toShort() * 0x100 + byteArray[i].toShort()
-                            floatArray[i] = (value.toFloat() / Short.MAX_VALUE.toFloat())
-                            val v = floatArray.drop(i * spp).takeIf { it.size >= spp }?.average()?.toFloat()
-                            v?.let { appendValue(it) }
+                            val value = (byteArray[i].toShort() * 0x100 + byteArray[i].toShort()).toShort()
+                            circularShortBuffer.put(value)
                         }
                     }
                 }
@@ -127,5 +124,15 @@ class MainController : Initializable {
         }.start()
 
         isAppRunning.set(true)
+
+        object : Thread() {
+            override fun run() {
+                while (isAppRunning.get()) {
+                    if (circularShortBuffer.available() > 0) {
+                        appendValue(circularShortBuffer.get())
+                    }
+                }
+            }
+        }.start()
     }
 }
