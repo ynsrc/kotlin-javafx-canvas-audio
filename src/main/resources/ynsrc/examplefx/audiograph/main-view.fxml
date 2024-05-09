@@ -1,21 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.canvas.Canvas?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ToolBar?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.canvas.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<BorderPane prefHeight="600.0" prefWidth="900.0" fx:controller="ynsrc.examplefx.audiograph.MainController"
-            xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+<BorderPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ynsrc.examplefx.audiograph.MainController">
    <bottom>
      <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-       <Button fx:id="btnStartStop" onAction="#onStartStopButtonClick"  mnemonicParsing="false" text="Start Sampling"/>
+       <Button fx:id="btnStartStop" mnemonicParsing="false" onAction="#onStartStopButtonClick" text="Start Sampling" />
      </ToolBar>
    </bottom>
    <center>
      <Pane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-       <Canvas fx:id="canvas" height="200.0" width="200.0"/>
+       <Canvas fx:id="canvas" height="200.0" width="200.0" />
      </Pane>
    </center>
+   <top>
+       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+           <Label fx:id="label" text="Status"/>
+       </ToolBar>
+   </top>
 </BorderPane>

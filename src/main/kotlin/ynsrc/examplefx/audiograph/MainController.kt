@@ -1,21 +1,28 @@
 package ynsrc.examplefx.audiograph
 
+import javafx.application.Platform
 import javafx.fxml.FXML
 import javafx.fxml.Initializable
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.control.Button
+import javafx.scene.control.Label
 import javafx.scene.layout.Pane
+import javafx.scene.paint.Color
 import java.net.URL
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.TargetDataLine
+import kotlin.math.abs
 
 class MainController : Initializable {
     @FXML
     private lateinit var btnStartStop: Button
+
+    @FXML
+    private lateinit var label: Label
 
     @FXML
     private lateinit var canvas: Canvas
@@ -28,6 +35,10 @@ class MainController : Initializable {
     private val audioFormat = AudioFormat(44100F, 16, 1, true, false)
     private var microphone: TargetDataLine = AudioSystem.getTargetDataLine(audioFormat)
     private var circularShortBuffer = CircularShortBuffer(canvasWidth)
+
+    private var minValue: Short = 0
+    private var maxValue: Short = 0
+    private var meanValue: Double = 0.0
 
     @FXML
     override fun initialize(url: URL?, resources: ResourceBundle?) {
@@ -81,19 +92,30 @@ class MainController : Initializable {
         object : Thread() {
             override fun run() {
                 var x = 0
+                g.fill = Color.WHITE
+                var counter = 1.0
                 while (isAppRunning.get()) {
                     if (circularShortBuffer.available() > 0) {
                         val value = circularShortBuffer.get()
-                        g.clearRect((x+2).mod(canvasWidth).toDouble(), 0.0, 1.0, canvasHeight.toDouble())
+                        minValue = minOf(value, minValue)
+                        maxValue = maxOf(value, maxValue)
+                        meanValue += value / counter++
                         if (++x >= canvasWidth) x = 0
+                        g.fillRect(x.mod(canvasWidth).toDouble(), 0.0, 1.0, canvasHeight.toDouble())
                         val normalizedValue = (value.toFloat() / Short.MAX_VALUE)
-                        g.strokeLine(
-                            x.toDouble(), canvasHeight / 2.0, x.toDouble(),
-                            (canvasHeight / 2.0) * (normalizedValue + 1.0)
-                        )
+                        val h = abs((canvasHeight / 2.0) * normalizedValue)
+                        g.strokeLine(x.toDouble(), canvasHeight / 2.0 - h, x.toDouble(), canvasHeight / 2.0 + h)
                     }
                 }
             }
         }.start()
+
+        Timer().scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                Platform.runLater {
+                    label.textProperty().set("Min: $minValue, Max: $maxValue, Mean: $meanValue")
+                }
+            }
+        }, 0, 1000)
     }
 }
